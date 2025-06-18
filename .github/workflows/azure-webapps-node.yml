@@ -1,41 +1,172 @@
-name: Multi-Platform Qt Build
+name: Build and Deploy Qt Tic-Tac-Toe Game
 
 on:
   push:
-    branches: [ "main" ]
-  workflow_dispatch:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  release:
+    types: [published]
+
+env:
+  QT_VERSION: '6.5.0'
+  CMAKE_BUILD_TYPE: Release
 
 jobs:
   build:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        qt-version: ['6.5.0']
-        
+        include:
+          - os: ubuntu-latest
+            qt_arch: gcc_64
+            artifact_name: tic-tac-toe-linux
+            executable_extension: ''
+          - os: windows-latest
+            qt_arch: win64_msvc2019_64
+            artifact_name: tic-tac-toe-windows
+            executable_extension: '.exe'
+          - os: macos-latest
+            qt_arch: clang_64
+            artifact_name: tic-tac-toe-macos
+            executable_extension: '.app'
+
     runs-on: ${{ matrix.os }}
     
     steps:
-    - uses: actions/checkout@v4
-    
+    - name: Checkout code
+      uses: actions/checkout@v4
+
     - name: Install Qt
       uses: jurplel/install-qt-action@v3
       with:
-        version: ${{ matrix.qt-version }}
-        
-    - name: Build on Linux/macOS
-      if: runner.os != 'Windows'
+        version: ${{ env.QT_VERSION }}
+        arch: ${{ matrix.qt_arch }}
+        cache: true
+        modules: 'qtbase qttools'
+
+    - name: Setup MSVC (Windows only)
+      if: matrix.os == 'windows-latest'
+      uses: ilammy/msvc-dev-cmd@v1
+
+    - name: Install Linux dependencies
+      if: matrix.os == 'ubuntu-latest'
       run: |
-        qmake
-        make
-        
-    - name: Build on Windows
-      if: runner.os == 'Windows'
+        sudo apt-get update
+        sudo apt-get install -y libgl1-mesa-dev libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-xinerama0 libxcb-xinput0 libxcb-xfixes0
+
+    - name: Configure CMake
       run: |
-        qmake
-        nmake
-        
-    - name: Upload build artifacts
+        mkdir build
+        cd build
+        cmake .. -DCMAKE_BUILD_TYPE=${{ env.CMAKE_BUILD_TYPE }} -DCMAKE_PREFIX_PATH=${{ env.Qt6_DIR }}
+
+    - name: Build application
+      run: |
+        cd build
+        cmake --build . --config ${{ env.CMAKE_BUILD_TYPE }}
+
+    - name: Create deployment directory (Linux/macOS)
+      if: matrix.os != 'windows-latest'
+      run: |
+        mkdir -p deploy
+        cp build/TicTacToeGame${{ matrix.executable_extension }} deploy/
+
+    - name: Create deployment directory (Windows)
+      if: matrix.os == 'windows-latest'
+      run: |
+        mkdir deploy
+        copy "build\Release\TicTacToeGame.exe" deploy\
+        copy "build\Release\*.dll" deploy\ 2>nul || echo "No DLLs to copy"
+
+    - name: Deploy Qt libraries (Linux)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        ${{ env.Qt6_DIR }}/bin/linuxdeployqt deploy/TicTacToeGame -appimage -qmake=${{ env.Qt6_DIR }}/bin/qmake
+
+    - name: Deploy Qt libraries (Windows)
+      if: matrix.os == 'windows-latest'
+      run: |
+        ${{ env.Qt6_DIR }}\bin\windeployqt.exe deploy\TicTacToeGame.exe
+
+    - name: Deploy Qt libraries (macOS)
+      if: matrix.os == 'macos-latest'
+      run: |
+        ${{ env.Qt6_DIR }}/bin/macdeployqt deploy/TicTacToeGame.app -dmg
+
+    - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: qt-app-${{ matrix.os }}
-        path: ./build/
+        name: ${{ matrix.artifact_name }}
+        path: deploy/
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release'
+    
+    steps:
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts
+
+    - name: Create release packages
+      run: |
+        cd artifacts
+        for dir in */; do
+          zip -r "${dir%/}.zip" "$dir"
+        done
+
+    - name: Upload release assets
+      uses: softprops/action-gh-release@v1
+      with:
+        files: artifacts/*.zip
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  deploy-to-server:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    steps:
+    - name: Download Linux artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: tic-tac-toe-linux
+        path: deploy
+
+    - name: Deploy to server via SSH
+      uses: appleboy/ssh-action@v1.0.0
+      with:
+        host: ${{ secrets.HOST }}
+        username: ${{ secrets.USERNAME }}
+        key: ${{ secrets.SSH_KEY }}
+        port: ${{ secrets.PORT }}
+        script: |
+          sudo systemctl stop tic-tac-toe || true
+          sudo rm -rf /opt/tic-tac-toe-game/*
+          sudo mkdir -p /opt/tic-tac-toe-game
+
+    - name: Copy files to server
+      uses: appleboy/scp-action@v0.1.4
+      with:
+        host: ${{ secrets.HOST }}
+        username: ${{ secrets.USERNAME }}
+        key: ${{ secrets.SSH_KEY }}
+        port: ${{ secrets.PORT }}
+        source: "deploy/*"
+        target: "/opt/tic-tac-toe-game/"
+        strip_components: 1
+
+    - name: Set permissions and restart service
+      uses: appleboy/ssh-action@v1.0.0
+      with:
+        host: ${{ secrets.HOST }}
+        username: ${{ secrets.USERNAME }}
+        key: ${{ secrets.SSH_KEY }}
+        port: ${{ secrets.PORT }}
+        script: |
+          sudo chmod +x /opt/tic-tac-toe-game/TicTacToeGame
+          sudo systemctl start tic-tac-toe || true
