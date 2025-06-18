@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>800</width>
+    <height>600</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>MainWindow</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <widget class="QWidget" name="verticalLayoutWidget">
+    <property name="geometry">
+     <rect>
+      <x>270</x>
+      <y>50</y>
+      <width>271</width>
+      <height>181</height>
+     </rect>
+    </property>
+    <layout class="QVBoxLayout" name="verticalLayout">
+     <item>
+      <widget class="QLabel" name="Login">
+       <property name="styleSheet">
+        <string notr="true">color: #007BFF;  /* الأزرق */
+font-size: 18px;  /* تغيير حجم الخط */
+font-weight: bold;  /* جعل الخط عريض */</string>
+       </property>
+       <property name="text">
+        <string>login</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLineEdit" name="usernameLineEdit">
+       <property name="styleSheet">
+        <string notr="true">background-color: #f0f0f0;  /* خلفية خفيفة */
+color: #333333;  /* اللون الداكن للنص */
+border: 1px solid #888;  /* حدود خفيفة حول الـQLineEdit */</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLineEdit" name="passwordLineEdit">
+       <property name="styleSheet">
+        <string notr="true">background-color: #f0f0f0;  /* خلفية خفيفة */
+color: #333333;  /* اللون الداكن للنص */
+border: 1px solid #888;  /* حدود خفيفة حول الـQLineEdit */</string>
+       </property>
+       <property name="echoMode">
+        <enum>QLineEdit::EchoMode::Password</enum>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="loginButton">
+       <property name="styleSheet">
+        <string notr="true">background-color: #4CAF50;  /* اللون الأخضر */
+color: white;  /* النص يبقى لونه أبيض */
+border-radius: 5px;  /* حواف الزرار مدورة شوية */</string>
+       </property>
+       <property name="text">
+        <string>login</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="registerButton">
+       <property name="styleSheet">
+        <string notr="true">background-color: #4CAF50;  /* اللون الأخضر */
+color: white;  /* النص يبقى لونه أبيض */
+border-radius: 5px;  /* حواف الزرار مدورة شوية */</string>
+       </property>
+       <property name="text">
+        <string>register</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </widget>
+  </widget>
+  <widget class="QMenuBar" name="menubar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>800</width>
+     <height>21</height>
+    </rect>
+   </property>
+  </widget>
+  <widget class="QStatusBar" name="statusbar"/>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

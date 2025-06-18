@@ -1,0 +1,16 @@
+{
+  "users": [
+    {
+      "username": "ali",
+      "password": "5e88489...hashed",
+      "games": [
+        {
+          "opponent": "AI",
+          "result": "win",
+          "date": "2025-06-12",
+          "moves": ["X1", "O2", "X5", ...]
+        }
+      ]
+    }
+  ]
+}
