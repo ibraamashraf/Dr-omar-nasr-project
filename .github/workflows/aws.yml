@@ -14,7 +14,7 @@ jobs:
     environment: production
     
     env:
-      AWS_REGION: us-east-1  # Replace with your actual AWS region
+      AWS_REGION: us-east-1
       ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
       ECS_SERVICE: ${{ vars.ECS_SERVICE }}
       ECS_CLUSTER: ${{ vars.ECS_CLUSTER }}
@@ -25,6 +25,16 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v4
 
+    - name: Debug Variables Before AWS Authentication
+      run: |
+        echo "=== Pre-Authentication Debug ==="
+        echo "AWS_REGION: ${{ env.AWS_REGION }}"
+        echo "ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY != '' && vars.ECR_REPOSITORY || 'NOT SET' }}"
+        echo "ECS_SERVICE: ${{ vars.ECS_SERVICE != '' && vars.ECS_SERVICE || 'NOT SET' }}"
+        echo "ECS_CLUSTER: ${{ vars.ECS_CLUSTER != '' && vars.ECS_CLUSTER || 'NOT SET' }}"
+        echo "Secrets configured: ${{ secrets.AWS_ACCESS_KEY_ID != '' && secrets.AWS_SECRET_ACCESS_KEY != '' && 'YES' || 'NO' }}"
+        echo "==============================="
+
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
       with:
@@ -32,33 +42,14 @@ jobs:
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: ${{ env.AWS_REGION }}
 
+    - name: Discover ECR Repositories
+      run: |
+        echo "=== Available ECR Repositories ==="
+        aws ecr describe-repositories --region ${{ env.AWS_REGION }} --query 'repositories[].repositoryName' --output table || echo "Failed to list repositories"
+        echo "================================="
+
     - name: Login to Amazon ECR
       id: login-ecr
       uses: aws-actions/amazon-ecr-login@v2
 
-    - name: Build Qt application Docker image
-      id: build-image
-      env:
-        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        IMAGE_TAG: ${{ github.sha }}
-      run: |
-        # Build Qt Tic-Tac-Toe Docker container
-        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
-        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-        echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
-
-    - name: Fill in the new image ID in the Amazon ECS task definition
-      id: task-def
-      uses: aws-actions/amazon-ecs-render-task-definition@v1
-      with:
-        task-definition: ${{ env.ECS_TASK_DEFINITION }}
-        container-name: ${{ env.CONTAINER_NAME }}
-        image: ${{ steps.build-image.outputs.image }}
-
-    - name: Deploy Amazon ECS task definition
-      uses: aws-actions/amazon-ecs-deploy-task-definition@v1
-      with:
-        task-definition: ${{ steps.task-def.outputs.task-definition }}
-        service: ${{ env.ECS_SERVICE }}
-        cluster: ${{ env.ECS_CLUSTER }}
-        wait-for-service-stability: true
+    # Continue with rest of your workflow...
