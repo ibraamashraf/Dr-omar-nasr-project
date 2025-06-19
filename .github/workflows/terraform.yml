@@ -80,23 +80,8 @@ jobs:
     - name: Terraform Plan
       id: plan
       run: |
-        set +e  # Disable exit on error temporarily
         terraform plan -detailed-exitcode -input=false -out=tfplan
-        PLAN_EXIT_CODE=$?
-        echo "exitcode=$PLAN_EXIT_CODE" >> $GITHUB_OUTPUT
-        echo "Terraform plan exit code: $PLAN_EXIT_CODE"
-        
-        # Exit with the actual terraform plan exit code
-        if [ $PLAN_EXIT_CODE -eq 1 ]; then
-          echo "Terraform plan failed with errors"
-          exit 1
-        elif [ $PLAN_EXIT_CODE -eq 2 ]; then
-          echo "Terraform plan succeeded with changes"
-          exit 0
-        else
-          echo "Terraform plan succeeded with no changes"
-          exit 0
-        fi
+        echo "exitcode=$?" >> $GITHUB_OUTPUT
 
     - name: Terraform Apply
       if: github.ref == 'refs/heads/main' && github.event_name == 'push' && steps.plan.outputs.exitcode == '2'
