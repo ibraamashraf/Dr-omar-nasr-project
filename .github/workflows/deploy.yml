@@ -3,8 +3,6 @@ name: Deploy Qt Tic-Tac-Toe to Amazon ECS
 on:
   push:
     branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
 
 env:
   AWS_REGION: us-east-1
@@ -18,36 +16,9 @@ permissions:
   contents: read
 
 jobs:
-  test:
-    name: Test Application
-    runs-on: ubuntu-latest
-    
-    steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-      
-    - name: Install Qt
-      uses: jurplel/install-qt-action@v3
-      with:
-        version: '6.5.0'
-        host: 'linux'
-        target: 'desktop'
-        
-    - name: Build Application
-      run: |
-        qmake CONFIG+=release
-        make
-        
-    - name: Run Tests (if you have any)
-      run: |
-        echo "Add your test commands here"
-        # ./your-test-executable
-
   deploy:
-    name: Deploy to ECS
+    name: Deploy
     runs-on: ubuntu-latest
-    needs: test
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     environment: production
 
     steps:
@@ -65,7 +36,7 @@ jobs:
       id: login-ecr
       uses: aws-actions/amazon-ecr-login@v2
 
-    - name: Build Qt Tic-Tac-Toe Docker image
+    - name: Build, tag, and push image to Amazon ECR
       id: build-image
       env:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
@@ -86,10 +57,9 @@ jobs:
         image: ${{ steps.build-image.outputs.image }}
 
     - name: Deploy Amazon ECS task definition
-      uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+      uses: aws-actions/amazon-ecs-deploy-task-definition@v2
       with:
         task-definition: ${{ steps.task-def.outputs.task-definition }}
         service: ${{ env.ECS_SERVICE }}
         cluster: ${{ env.ECS_CLUSTER }}
         wait-for-service-stability: true
-
