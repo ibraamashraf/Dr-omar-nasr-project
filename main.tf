@@ -1,13 +1,13 @@
+# main.tf - Local backend version
 terraform {
-  backend "remote" {
-    organization = "your-terraform-cloud-org"
-    workspaces {
-      name = "your-workspace-name"
+  required_providers {
+    null = {
+      source  = "hashicorp/null"
+      version = "~> 3.0"
     }
   }
 }
 
-# Add your actual infrastructure resources here
 resource "null_resource" "example" {
   triggers = {
     timestamp = timestamp()
