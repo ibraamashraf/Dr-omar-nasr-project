@@ -67,9 +67,10 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Setup Terraform
-      uses: hashicorp/setup-terraform@v1
+      uses: hashicorp/setup-terraform@v3
       with:
         cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
+        terraform_wrapper: false  # Important for exit code capture
 
     - name: Terraform Init
       run: terraform init
@@ -80,8 +81,19 @@ jobs:
     - name: Terraform Plan
       id: plan
       run: |
+        set +e  # Disable exit on error
         terraform plan -detailed-exitcode -input=false -out=tfplan
-        echo "exitcode=$?" >> $GITHUB_OUTPUT
+        PLAN_EXIT_CODE=$?
+        echo "exitcode=$PLAN_EXIT_CODE" >> $GITHUB_OUTPUT
+        echo "Terraform plan exit code: $PLAN_EXIT_CODE"
+        
+        # Handle different exit codes
+        if [ $PLAN_EXIT_CODE -eq 1 ]; then
+          echo "Terraform plan failed"
+          exit 1
+        else
+          exit 0
+        fi
 
     - name: Terraform Apply
       if: github.ref == 'refs/heads/main' && github.event_name == 'push' && steps.plan.outputs.exitcode == '2'
